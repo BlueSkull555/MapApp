@@ -4,8 +4,8 @@ import {Button, Text, Input} from 'react-native-elements';
 import {useAuth} from './AuthProvider';
 
 export function LogInView() {
-  const [phone, setPhone] = useState('55555555');
-  const [password, setPassword] = useState('test@123');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState();
   const {logIn, registerUser} = useAuth();
   const [authMode, setAuthMode] = useState('Login');
