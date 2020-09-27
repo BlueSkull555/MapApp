@@ -1,114 +1,152 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow strict-local
- */
+import React, {useEffect, useState} from 'react';
+import {SafeAreaView, View, StatusBar, Platform} from 'react-native';
+import {useAuth} from './AuthProvider';
+import {LogInView} from './LogInView';
+import {AuthProvider} from './AuthProvider';
 
-import React from 'react';
-import {
-  SafeAreaView,
-  StyleSheet,
-  ScrollView,
-  View,
-  Text,
-  StatusBar,
-} from 'react-native';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {NavigationContainer} from '@react-navigation/native';
 
-import {
-  Header,
-  LearnMoreLinks,
-  Colors,
-  DebugInstructions,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import Home from './components/Home';
+import Order from './components/Order';
 
-const App: () => React$Node = () => {
+import {check, request, PERMISSIONS} from 'react-native-permissions';
+
+import Geolocation from '@react-native-community/geolocation';
+import HomeDriver from './components/HomeDriver';
+
+let intervalId;
+
+const App = () => {
   return (
-    <>
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}>
-          <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
-            </View>
-          )}
-          <View style={styles.body}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step One</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.js</Text> to change this
-                screen and then come back to see your edits.
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
-            </View>
-            <LearnMoreLinks />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </>
+    <AuthProvider>
+      <AppBody />
+    </AuthProvider>
   );
 };
 
-const styles = StyleSheet.create({
-  scrollView: {
-    backgroundColor: Colors.lighter,
-  },
-  engine: {
-    position: 'absolute',
-    right: 0,
-  },
-  body: {
-    backgroundColor: Colors.white,
-  },
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: Colors.black,
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-    color: Colors.dark,
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-  footer: {
-    color: Colors.dark,
-    fontSize: 12,
-    fontWeight: '600',
-    padding: 4,
-    paddingRight: 12,
-    textAlign: 'right',
-  },
-});
+function AppBody() {
+  const {user, logOut, userInfo} = useAuth();
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  const Tab = createBottomTabNavigator();
+
+  const askPermission = async () => {
+    switch (Platform.OS) {
+      case 'ios':
+        if (await check(PERMISSIONS.IOS.LOCATION_ALWAYS !== 'granted')) {
+          await request(PERMISSIONS.IOS.LOCATION_ALWAYS);
+        }
+        break;
+
+      case 'android':
+        if (
+          await check(
+            PERMISSIONS.ANDROID.ACCESS_BACKGROUND_LOCATION !== 'granted',
+          )
+        ) {
+          await request(PERMISSIONS.ANDROID.ACCESS_BACKGROUND_LOCATION);
+        }
+        break;
+    }
+  };
+
+  const getDriverLocation = async () => {
+    let currentPos = {latitude: 1.0, longitude: 1.0};
+    try {
+      Geolocation.watchPosition(
+        (position) => {
+          currentPos = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+        },
+        (error) => {
+          switch (error.code) {
+            case 1:
+              if (Platform.OS === 'ios') {
+                alert(
+                  'To locate your location enable permission for the application in Settings - Privacy - Location',
+                );
+              } else {
+                alert(
+                  'To locate your location enable permission for the application in Settings - Apps - AppName - Location',
+                );
+              }
+              break;
+            default:
+              alert('Error detecting your location');
+              // alert(error);
+              console.log(error);
+          }
+        },
+      );
+    } catch (e) {
+      alert(e.message || '');
+    }
+    intervalId = setInterval(async () => {
+      await user.functions.updateDriverLocation({
+        _id: userInfo._id,
+        location: currentPos,
+      });
+    }, 10000);
+  };
+
+  useEffect(() => {
+    askPermission();
+    if (userInfo && userInfo.role === 'driver' && user) {
+      getDriverLocation();
+      setLoggedIn(true);
+    }
+  }, [userInfo, user]);
+
+  useEffect(() => {
+    if (user === null && loggedIn) {
+      clearInterval(intervalId);
+      setLoggedIn(false);
+    }
+  }, [user]);
+
+  return (
+    <>
+      <StatusBar barStyle="dark-content" />
+      <View style={{flex: 1}}>
+        {user == null ? (
+          <LogInView />
+        ) : userInfo.role == null ? (
+          <Text>Loading...</Text>
+        ) : userInfo.role == 'customer' ? (
+          <NavigationContainer>
+            <Tab.Navigator>
+              <Tab.Screen
+                name="Home"
+                children={() => (
+                  <Home user={user} userInfo={userInfo} logOut={logOut} />
+                )}
+              />
+              <Tab.Screen
+                name="Order"
+                children={() => (
+                  <Order user={user} userInfo={userInfo} logOut={logOut} />
+                )}
+              />
+            </Tab.Navigator>
+          </NavigationContainer>
+        ) : (
+          <NavigationContainer>
+            <Tab.Navigator>
+              <Tab.Screen
+                name="Home"
+                children={() => (
+                  <HomeDriver user={user} userInfo={userInfo} logOut={logOut} />
+                )}
+              />
+            </Tab.Navigator>
+          </NavigationContainer>
+        )}
+      </View>
+    </>
+  );
+}
 
 export default App;

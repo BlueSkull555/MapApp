@@ -10,8 +10,24 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@react-native-community/geolocation": "^2.0.2",
+    "@react-navigation/bottom-tabs": "^5.8.0",
+    "@react-navigation/native": "^5.7.3",
+    "geolib": "^3.3.1",
+    "moment": "^2.29.0",
     "react": "16.13.1",
-    "react-native": "0.63.2"
+    "react-native": "0.63.2",
+    "react-native-elements": "^2.3.2",
+    "react-native-gesture-handler": "^1.8.0",
+    "react-native-maps": "git+https://github.com/xDemon200/react-native-maps.git",
+    "react-native-maps-directions": "^1.8.0",
+    "react-native-permissions": "^2.2.1",
+    "react-native-reanimated": "^1.13.0",
+    "react-native-safe-area-context": "^3.1.8",
+    "react-native-screens": "^2.11.0",
+    "react-native-vector-icons": "^7.1.0",
+    "react-navigation": "^4.4.0",
+    "realm": "^10.0.0-beta.13"
   },
   "devDependencies": {
     "@babel/core": "7.11.6",
